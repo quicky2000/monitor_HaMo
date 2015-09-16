@@ -21,6 +21,7 @@
 #else
 #include <curl/curl.h>
 #endif // _WIN32
+#include "url_reader.h"
 #include "download_buffer.h"
 #include "quicky_exception.h"
 #include <iostream>
@@ -45,7 +46,6 @@ size_t receive_data(void *p_buffer, size_t p_size, size_t p_nmemb, void *p_userp
 int main(int argc,char ** argv)
 {
   int l_status = 0;
-  CURL * l_curl_handler = nullptr;
 
   try
     {
@@ -74,26 +74,25 @@ int main(int argc,char ** argv)
       l_param_manager.treat_parameters(argc,argv);
 #if 0
       std::string l_login_url = "https://www.logre.eu/mediawiki/index.php?title=Sp%C3%A9cial:Connexion&returnto=Accueil";
-      std::string l_post_logging_url  = "https://www.logre.eu/mediawiki/index.php?title=Sp%C3%A9cial:Connexion&action=submitlogin&type=login&returnto=Accueil";
+      std::string l_post_login_url  = "https://www.logre.eu/mediawiki/index.php?title=Sp%C3%A9cial:Connexion&action=submitlogin&type=login&returnto=Accueil";
       std::string l_post_fields_begin = "wpLoginAttempt=Se+connecter&wpLoginToken=";
       std::string l_post_fields_end = "&wpName=" + l_user_name_parameter.get_value<std::string>() + "&wpPassword="+ l_user_password_parameter.get_value<std::string>() +"";
       std::string l_login_token_id = "wpLoginToken";
       std::string l_test_page_url = "https://www.logre.eu/wiki/Utilisateur:Pja";
 #else
       std::string l_login_url = "https://gride.gr-tsc.com/login";
-      std::string l_post_logging_url  = "https://gride.gr-tsc.com/login/auth";
+      std::string l_post_login_url  = "https://gride.gr-tsc.com/login/auth";
       std::string l_post_fields_begin = "login%5BuserId%5D="+l_user_name_parameter.get_value<std::string>()+"&login%5Bpassword%5D="+l_user_password_parameter.get_value<std::string>()+"&login%5B_csrf_token%5D=";
       std::string l_post_fields_end = "";
       std::string l_login_token_id = "login[_csrf_token]";
       std::string l_test_page_url = "https://gride.gr-tsc.com/service/homemap";
-      //std::string l_test_page_url = "https://gride.gr-tsc.com/home";
 #endif
 
       std::cout << "Start" << std::endl ;
+
+
+      quicky_url_reader::url_reader l_url_reader;
   
-      // Initialisation of Curl is done by url_reader static instance
-      l_curl_handler = curl_easy_init();
-        
       // Proxy authentication
       std::string l_proxy_host = l_proxy_host_parameter.value_set() ? l_proxy_host_parameter.get_value<std::string>() : "";
       std::string l_proxy_port = l_proxy_port_parameter.value_set() ? l_proxy_port_parameter.get_value<std::string>() : "";
@@ -103,11 +102,7 @@ int main(int argc,char ** argv)
       if("" != l_proxy_host && "" != l_proxy_port && "" != l_proxy_user && "" != l_proxy_password)
         {
           std::cout << "=> Activating proxy authentication" << std::endl ;
-          std::string l_proxy = l_proxy_host + ":" + l_proxy_port;
-          std::string l_proxy_userpwd = l_proxy_user + ":" + l_proxy_password ;
-          curl_easy_setopt(l_curl_handler, CURLOPT_PROXY, l_proxy.c_str());
-          curl_easy_setopt(l_curl_handler, CURLOPT_PROXYUSERPWD,l_proxy_userpwd.c_str());
-          curl_easy_setopt(l_curl_handler, CURLOPT_SSL_VERIFYPEER, false);
+	  l_url_reader.set_authentication(l_proxy_host,l_proxy_port,l_proxy_user,l_proxy_password);
         }
       else if("" != l_proxy_host || "" != l_proxy_port || "" != l_proxy_user || "" != l_proxy_password)
         {
@@ -139,90 +134,22 @@ int main(int argc,char ** argv)
           throw quicky_exception::quicky_logic_exception(l_error_message,__LINE__,__FILE__);
         }
 
-      curl_easy_setopt(l_curl_handler, CURLOPT_COOKIESESSION,true); 
-      curl_easy_setopt(l_curl_handler, CURLOPT_COOKIEFILE,"toto.txt"); 
-      curl_easy_setopt(l_curl_handler,CURLOPT_FOLLOWLOCATION,true);
-      download_buffer l_buffer;
-      curl_easy_setopt(l_curl_handler, CURLOPT_WRITEFUNCTION,receive_data); 
-      curl_easy_setopt(l_curl_handler, CURLOPT_WRITEDATA, (void *)&l_buffer);
-      curl_easy_setopt(l_curl_handler, CURLOPT_URL,l_login_url.c_str());
-      if(l_verbose_curl_parameter.value_set())
-        {
-          curl_easy_setopt(l_curl_handler, CURLOPT_VERBOSE,1);
-        }
 
-      CURLcode l_curl_status = curl_easy_perform(l_curl_handler);
-      if(l_curl_status)
-        {
-          std::stringstream l_stream;
-          l_stream << "Error when downloading \"" << l_login_url << "\" : " << curl_easy_strerror(l_curl_status);
-          throw quicky_exception::quicky_runtime_exception(l_stream.str(),__LINE__,__FILE__);
-        }
-
-      // Extract login token
-      std::string l_content(l_buffer.get_data(),l_buffer.get_size());
-      size_t l_pos = l_content.find(l_login_token_id);
-      assert(std::string::npos != l_pos);
-      l_pos = l_content.find("value",l_pos);
-      assert(std::string::npos != l_pos);
-      l_pos += std::string("value").size();
-      l_pos = l_content.find('"',l_pos);
-      assert(std::string::npos != l_pos);
-      ++l_pos;
-      size_t l_pos_end = l_content.find('"',l_pos);
-
-      if(l_verbose_content_parameter.value_set())
-        {
-          std::cout << l_content << std::endl ;
-        }
-      std::string login_token = l_content.substr(l_pos,l_pos_end - l_pos);
-
-      // Connection 
-      std::string l_post_fields = l_post_fields_begin + login_token + l_post_fields_end;
-
-      curl_easy_setopt(l_curl_handler, CURLOPT_POST, true);
-      curl_easy_setopt(l_curl_handler, CURLOPT_POSTFIELDS,l_post_fields.c_str());
-      curl_easy_setopt(l_curl_handler, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
-      curl_easy_setopt(l_curl_handler, CURLOPT_URL,l_post_logging_url.c_str());
- 
-      l_buffer.clear();
-      l_curl_status = curl_easy_perform(l_curl_handler);
-      if(l_curl_status)
-        {
-          std::stringstream l_stream;
-          l_stream << "Error when downloading \"" << l_post_logging_url << "\" : " << curl_easy_strerror(l_curl_status);
-          throw quicky_exception::quicky_runtime_exception(l_stream.str(),__LINE__,__FILE__);
-        }
-
-      l_content = std::string(l_buffer.get_data(),l_buffer.get_size());
-      if(l_verbose_content_parameter.value_set())
-        {
-          std::cout << "-------------------------------------------------------------" << std::endl ;
-          std::cout << "Content of page after logging" << std::endl;
-          std::cout << l_content << std::endl ;
-        }
-      if(std::string::npos != l_content.find("Incorrect ID or password"))
-        {
-          throw quicky_exception::quicky_logic_exception("Connection failed !!! Please check your credentials",__LINE__,__FILE__);
-        }
-
+      l_url_reader.connect(l_login_url,
+			   l_post_login_url,
+			   l_post_fields_begin,
+			   l_post_fields_end,
+			   l_login_token_id,
+			   l_verbose_curl_parameter.value_set(),
+			   l_verbose_content_parameter.value_set());
 
       // get some data available only when connected
       std::cout << "-------------------------------------------------------------" << std::endl ;
-      std::cout << "Get some page on wiki to check if we are logged" << std::endl ;
-      curl_easy_setopt(l_curl_handler, CURLOPT_URL,l_test_page_url.c_str());
-      //  curl_easy_setopt(l_curl_handler, CURLOPT_COOKIEFILE,"cookies.txt");
-      l_buffer.clear();
-      curl_easy_setopt(l_curl_handler, CURLOPT_WRITEFUNCTION,receive_data); 
-      l_curl_status = curl_easy_perform(l_curl_handler);
-      if(l_curl_status)
-        {
-          std::stringstream l_stream;
-          l_stream << "Error when downloading \"" << l_test_page_url << "\" : " << curl_easy_strerror(l_curl_status);
-          throw quicky_exception::quicky_runtime_exception(l_stream.str(),__LINE__,__FILE__);
-        }
-  
-      l_content = std::string(l_buffer.get_data(),l_buffer.get_size());
+      std::cout << "Get some data to check if we are logged" << std::endl ;
+
+      std::string l_content;
+      l_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap",l_content);
+
       std::string l_formated_content;
       std::string l_prefix;
       for(unsigned int l_index = 0 ; l_index < l_content.size() ; ++l_index)
@@ -254,14 +181,6 @@ int main(int argc,char ** argv)
     {
       std::cout << "ERROR : " << e.what() << std::endl ;
       l_status = -1;
-    }
-  // Cleaning
-  if(l_curl_handler) 
-    {
-      std::cout << "libcurl handler cleanup" << std::endl ;
-      curl_easy_cleanup(l_curl_handler);
-      std::cout << "libcurl handler cleanup done" << std::endl ;
-      // Global cleanup of Curl is done by url_reader static instance
     }
   return l_status;
 
