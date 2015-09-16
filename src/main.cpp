@@ -16,31 +16,11 @@
 */
 #include "parameter_manager.h"
 
-#ifdef _WIN32
-#include "curl/curl.h"
-#else
-#include <curl/curl.h>
-#endif // _WIN32
 #include "url_reader.h"
-#include "download_buffer.h"
 #include "quicky_exception.h"
 #include <iostream>
-#include <sstream>
-#include <cassert>
 
 using namespace quicky_url_reader;
-
-//------------------------------------------------------------------------------
-size_t receive_data(void *p_buffer, size_t p_size, size_t p_nmemb, void *p_userp)
-{
-  size_t l_real_size = p_size * p_nmemb ;
-#ifdef DEBUG_URL_READER
-  std::cout << "url_reader::receive data of size " << l_real_size << std::endl ;
-#endif
-  download_buffer * l_buffer = (download_buffer*) p_userp;
-  l_buffer->add_data(l_real_size,p_buffer);
-  return p_size*p_nmemb;
-}
 
 
 int main(int argc,char ** argv)
