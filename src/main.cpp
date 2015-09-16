@@ -16,11 +16,10 @@
 */
 #include "parameter_manager.h"
 
-#include "url_reader.h"
+#include "monitor_HaMo.h"
 #include "quicky_exception.h"
 #include <iostream>
 
-using namespace quicky_url_reader;
 
 
 int main(int argc,char ** argv)
@@ -52,26 +51,10 @@ int main(int argc,char ** argv)
 
       // Treating parameters
       l_param_manager.treat_parameters(argc,argv);
-#if 0
-      std::string l_login_url = "https://www.logre.eu/mediawiki/index.php?title=Sp%C3%A9cial:Connexion&returnto=Accueil";
-      std::string l_post_login_url  = "https://www.logre.eu/mediawiki/index.php?title=Sp%C3%A9cial:Connexion&action=submitlogin&type=login&returnto=Accueil";
-      std::string l_post_fields_begin = "wpLoginAttempt=Se+connecter&wpLoginToken=";
-      std::string l_post_fields_end = "&wpName=" + l_user_name_parameter.get_value<std::string>() + "&wpPassword="+ l_user_password_parameter.get_value<std::string>() +"";
-      std::string l_login_token_id = "wpLoginToken";
-      std::string l_test_page_url = "https://www.logre.eu/wiki/Utilisateur:Pja";
-#else
-      std::string l_login_url = "https://gride.gr-tsc.com/login";
-      std::string l_post_login_url  = "https://gride.gr-tsc.com/login/auth";
-      std::string l_post_fields_begin = "login%5BuserId%5D="+l_user_name_parameter.get_value<std::string>()+"&login%5Bpassword%5D="+l_user_password_parameter.get_value<std::string>()+"&login%5B_csrf_token%5D=";
-      std::string l_post_fields_end = "";
-      std::string l_login_token_id = "login[_csrf_token]";
-      std::string l_test_page_url = "https://gride.gr-tsc.com/service/homemap";
-#endif
 
-      std::cout << "Start" << std::endl ;
+      std::cout << "Start Monitor_HaMo" << std::endl ;
 
-
-      quicky_url_reader::url_reader l_url_reader;
+      monitor_HaMo::monitor_HaMo l_monitor;
   
       // Proxy authentication
       std::string l_proxy_host = l_proxy_host_parameter.value_set() ? l_proxy_host_parameter.get_value<std::string>() : "";
@@ -82,7 +65,7 @@ int main(int argc,char ** argv)
       if("" != l_proxy_host && "" != l_proxy_port && "" != l_proxy_user && "" != l_proxy_password)
         {
           std::cout << "=> Activating proxy authentication" << std::endl ;
-	  l_url_reader.set_authentication(l_proxy_host,l_proxy_port,l_proxy_user,l_proxy_password);
+	  l_monitor.manage_proxy(l_proxy_host,l_proxy_port,l_proxy_user,l_proxy_password);
         }
       else if("" != l_proxy_host || "" != l_proxy_port || "" != l_proxy_user || "" != l_proxy_password)
         {
@@ -114,43 +97,16 @@ int main(int argc,char ** argv)
           throw quicky_exception::quicky_logic_exception(l_error_message,__LINE__,__FILE__);
         }
 
-
-      l_url_reader.connect(l_login_url,
-			   l_post_login_url,
-			   l_post_fields_begin,
-			   l_post_fields_end,
-			   l_login_token_id,
-			   l_verbose_curl_parameter.value_set(),
-			   l_verbose_content_parameter.value_set());
+      // Connect on Citelib by HaMo website
+      l_monitor.connect(l_user_name_parameter.get_value<std::string>(),
+			l_user_password_parameter.get_value<std::string>(),
+			l_verbose_curl_parameter.value_set(),
+			l_verbose_content_parameter.value_set());
 
       // get some data available only when connected
       std::cout << "-------------------------------------------------------------" << std::endl ;
       std::cout << "Get some data to check if we are logged" << std::endl ;
-
-      std::string l_content;
-      l_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap",l_content);
-
-      std::string l_formated_content;
-      std::string l_prefix;
-      for(unsigned int l_index = 0 ; l_index < l_content.size() ; ++l_index)
-        {
-          l_formated_content += l_content[l_index];
-          if(',' == l_content[l_index])
-            {
-              l_formated_content += '\n' + l_prefix;
-            }
-          if('{' == l_content[l_index] || '[' == l_content[l_index])
-            {
-              l_prefix += ' ';
-              l_formated_content += '\n' + l_prefix;
-            }
-          if('}' == l_content[l_index] || ']' == l_content[l_index])
-            {
-              l_prefix = l_prefix.substr(1);
-              l_formated_content += '\n' + l_prefix;
-            }
-        }
-      std::cout << l_formated_content << std::endl ;
+      l_monitor.get_station_data();
     }
   catch(quicky_exception::quicky_runtime_exception & e)
     {

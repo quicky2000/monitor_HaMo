@@ -18,12 +18,27 @@
 #ifndef _MONITOR_HAMO_H_
 #define _MONITOR_HAMO_H_
 
+#include <url_reader.h>
+#include <string>
+
 namespace monitor_HaMo
 {
   class monitor_HaMo
   {
   public:
+    void connect(const std::string & p_HaMo_login,
+		 const std::string & p_HaMo_password,
+		 bool p_verbose_curl,
+		 bool p_verbose_content);
+
+    void manage_proxy(const std::string & p_proxy_host,
+		      const std::string & p_proxy_port,
+		      const std::string & p_proxy_user,
+		      const std::string & p_proxy_password);
+
+    void get_station_data(void);
   private:
+    quicky_url_reader::url_reader m_url_reader;
   };
 }
 #endif // _MONITOR_HAMO_H_
