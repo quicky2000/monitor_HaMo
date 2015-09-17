@@ -20,11 +20,11 @@
 #include "quicky_exception.h"
 #include <iostream>
 
-#include <termios.h>    /* _getch */
 #ifndef WIN32
-#include <unistd.h>     /* getpass, getlogin */
+#include <unistd.h>     /* getlogin */
+#include <termios.h>    /* tcsetattr */
 #else
-#include <windows.h>    /* DWORD, GetUserName */
+#include <windows.h>    /* DWORD, GetUserName, SetConsoleMode */
 char *getlogin(void)
 {
   static char user_name[MAX_PATH];
