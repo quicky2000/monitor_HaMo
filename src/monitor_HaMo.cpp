@@ -28,7 +28,8 @@ namespace monitor_HaMo
     m_url_reader.set_authentication(p_proxy_host,
 				    p_proxy_port,
 				    p_proxy_user,
-				    p_proxy_password);
+				    p_proxy_password,
+				    true);
   }
   
   //----------------------------------------------------------------------------
