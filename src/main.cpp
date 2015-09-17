@@ -20,7 +20,54 @@
 #include "quicky_exception.h"
 #include <iostream>
 
+#include <termios.h>    /* _getch */
+#ifndef WIN32
+#include <unistd.h>     /* getpass, getlogin */
+#else
+#include <windows.h>    /* DWORD, GetUserName */
+char *getlogin(void)
+{
+  static char user_name[MAX_PATH];
+  DWORD  length = sizeof (user_name);
+  if (GetUserName (user_name, &length))
+    return user_name;
+  return NULL;
+}
+#endif
 
+void set_stdin_echo(bool enable = true)
+{
+#ifdef WIN32
+  HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+  DWORD mode;
+  GetConsoleMode(hStdin, &mode);
+
+  if( !enable )
+    mode &= ~ENABLE_ECHO_INPUT;
+  else
+    mode |= ENABLE_ECHO_INPUT;
+
+  SetConsoleMode(hStdin, mode );
+
+#else
+  struct termios tty;
+  tcgetattr(STDIN_FILENO, &tty);
+  if( !enable )
+    tty.c_lflag &= ~ECHO;
+  else
+    tty.c_lflag |= ECHO;
+
+  (void) tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+#endif
+}
+
+void getpass2(std::string & p_passwd, const std::string & p_prompt)
+{
+  std::cout << p_prompt;
+  set_stdin_echo( false);
+  std::cin >> p_passwd;
+  set_stdin_echo( true);
+}
 
 int main(int argc,char ** argv)
 {
@@ -29,10 +76,10 @@ int main(int argc,char ** argv)
   try
     {
       // Defining application command line parameters
-      parameter_manager::parameter_manager l_param_manager("monitor_HaMo.exe","--",2);
+      parameter_manager::parameter_manager l_param_manager("monitor_HaMo.exe","--",1);
       parameter_manager::parameter_if l_user_name_parameter("login",false);
       l_param_manager.add(l_user_name_parameter);
-      parameter_manager::parameter_if l_user_password_parameter("password",false);
+      parameter_manager::parameter_if l_user_password_parameter("password",true);
       l_param_manager.add(l_user_password_parameter);
 
       parameter_manager::parameter_if l_proxy_host_parameter("proxy-host",true);
@@ -51,21 +98,41 @@ int main(int argc,char ** argv)
 
       // Treating parameters
       l_param_manager.treat_parameters(argc,argv);
+      std::string l_user_name = l_user_name_parameter.value_set() ? l_user_name_parameter.get_value<std::string>() : "";
+      std::string l_user_password = l_user_password_parameter.value_set() ? l_user_password_parameter.get_value<std::string>() : "";
+
+      if("" == l_user_password)
+      {
+        std::string l_prompt = "enter password for " + l_user_name + "\n";
+        getpass2( l_user_password, l_prompt);
+      }
 
       std::cout << "Start Monitor_HaMo" << std::endl ;
 
       monitor_HaMo::monitor_HaMo l_monitor;
-  
+
       // Proxy authentication
       std::string l_proxy_host = l_proxy_host_parameter.value_set() ? l_proxy_host_parameter.get_value<std::string>() : "";
       std::string l_proxy_port = l_proxy_port_parameter.value_set() ? l_proxy_port_parameter.get_value<std::string>() : "";
       std::string l_proxy_user = l_proxy_user_parameter.value_set() ? l_proxy_user_parameter.get_value<std::string>() : "";
       std::string l_proxy_password = l_proxy_password_parameter.value_set() ? l_proxy_password_parameter.get_value<std::string>() : "";
 
+      if("" != l_proxy_host && "" != l_proxy_port && ("" == l_proxy_user || "" == l_proxy_password))
+      {
+        if ("" == l_proxy_user)
+        {
+          l_proxy_user = getlogin();
+        }
+        if ("" == l_proxy_password)
+        {
+          std::string l_prompt = "enter proxy password for " + l_proxy_user + "@" + l_proxy_host + ":" + l_proxy_port + "\n";
+          getpass2( l_proxy_password, l_prompt);
+        }
+      }
       if("" != l_proxy_host && "" != l_proxy_port && "" != l_proxy_user && "" != l_proxy_password)
         {
           std::cout << "=> Activating proxy authentication" << std::endl ;
-	  l_monitor.manage_proxy(l_proxy_host,l_proxy_port,l_proxy_user,l_proxy_password);
+          l_monitor.manage_proxy(l_proxy_host,l_proxy_port,l_proxy_user,l_proxy_password);
         }
       else if("" != l_proxy_host || "" != l_proxy_port || "" != l_proxy_user || "" != l_proxy_password)
         {
@@ -98,10 +165,10 @@ int main(int argc,char ** argv)
         }
 
       // Connect on Citelib by HaMo website
-      l_monitor.connect(l_user_name_parameter.get_value<std::string>(),
-			l_user_password_parameter.get_value<std::string>(),
-			l_verbose_curl_parameter.value_set(),
-			l_verbose_content_parameter.value_set());
+      l_monitor.connect(l_user_name,
+                        l_user_password,
+                        l_verbose_curl_parameter.value_set(),
+                        l_verbose_content_parameter.value_set());
 
       // get some data available only when connected
       std::cout << "-------------------------------------------------------------" << std::endl ;
