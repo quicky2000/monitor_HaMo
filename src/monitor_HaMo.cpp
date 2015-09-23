@@ -15,7 +15,10 @@
       along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 #include "monitor_HaMo.h"
+#include "json_parser.h"
 #include <iostream>
+#include <sstream>
+#include <ctime>
 
 namespace monitor_HaMo
 {
@@ -56,7 +59,11 @@ namespace monitor_HaMo
   void monitor_HaMo::get_station_data(void)
   {
     std::string l_content;
-    m_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap",l_content);
+
+    time_t l_time = time(nullptr);
+    std::stringstream l_stream;
+    l_stream << l_time;
+m_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap?_="+l_stream.str(),l_content);
 
     std::string l_formated_content;
     std::string l_prefix;
@@ -79,6 +86,45 @@ namespace monitor_HaMo
 	  }
       }
     std::cout << l_formated_content << std::endl ;
+
+    json_kit::json_parser l_parser;
+    const json_kit::json_object & l_data = l_parser.parse(l_content);
+
+    if(!l_data.contains("zone")) throw quicky_exception::quicky_logic_exception("Expecting \"zone\" member in returned JSON object",__LINE__,__FILE__);
+
+    const json_kit::json_value & l_stations = l_data.get("zone").get("areas").get(0).get("stations");
+    unsigned int l_station_number = l_stations.get_size();
+    uint64_t l_total_coms = 0;
+    uint64_t l_total_iroads = 0;
+    uint64_t l_total_parking = 0;
+    size_t l_max_size = 0;
+    for(unsigned int l_index = 0 ; l_index < l_station_number ; ++l_index)
+    {
+      size_t l_size = l_stations.get(l_index).get("stationName").get_size();
+      if(l_size > l_max_size) l_max_size = l_size;
+    }
+    for(unsigned int l_index = 0 ; l_index < l_station_number ; ++l_index)
+    {
+      const json_kit::json_value & l_station = l_stations.get(l_index);
+      const json_kit::json_value & l_station_json_name = l_station.get("stationName");
+      std::string l_station_name = l_station_json_name.get_string();
+      if(l_station_json_name.get_size() < l_max_size)
+      {
+        l_station_name += std::string(l_max_size - l_station_json_name.get_size(),' ');
+      }
+      uint64_t l_nb_parking = l_station.get("garage").get_uint64_t();
+      l_total_parking += l_nb_parking;
+      std::cout << l_station_name << " : " << l_nb_parking << " places, " << l_station.get("ev").get_uint64_t() << " vehicules dont ";
+      const json_kit::json_value & l_car_details = l_station.get("evByType");
+      uint64_t l_nb_coms = l_car_details.get("1").get_uint64_t();
+      uint64_t l_nb_iroads = l_car_details.get("2").get_uint64_t();
+      l_total_coms += l_nb_coms;
+      l_total_iroads += l_nb_iroads;
+      std::cout << l_nb_coms  << " Coms et " << l_nb_iroads << " Iroads" << std::endl ;
+    }
+    std::cout << "Soit " << l_total_coms << " Coms, " << l_total_iroads << " Iroads, " << l_total_parking << " places reparties sur " << l_station_number << " stations" << std::endl;
+    delete(&l_data);
+
   }
   
 }
