@@ -19,6 +19,8 @@
 #include "monitor_HaMo.h"
 #include "quicky_exception.h"
 #include <iostream>
+#include <chrono>
+#include <ctime>
 
 #ifndef WIN32
 #include <unistd.h>     /* getlogin */
@@ -173,7 +175,22 @@ int main(int argc,char ** argv)
       // get some data available only when connected
       std::cout << "-------------------------------------------------------------" << std::endl ;
       std::cout << "Get some data to check if we are logged" << std::endl ;
-      l_monitor.get_station_data();
+
+      while(1)
+	{
+	  std::chrono::time_point<std::chrono::system_clock> l_time = std::chrono::system_clock::now();
+	  std::time_t l_end_time = std::chrono::system_clock::to_time_t(l_time);
+	  std::cout << "Status at " << std::ctime(&l_end_time) << std::endl ;
+
+	  l_monitor.get_station_data();
+	  unsigned int l_delay = 60;
+#ifndef _WIN32
+	  sleep(l_delay);
+#else
+	  Sleep(1000*l_delay);
+#endif
+
+	}
     }
   catch(quicky_exception::quicky_runtime_exception & e)
     {

@@ -65,6 +65,7 @@ namespace monitor_HaMo
     l_stream << l_time;
 m_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap?_="+l_stream.str(),l_content);
 
+#ifdef DISPLAY_JSON_CONTENT
     std::string l_formated_content;
     std::string l_prefix;
     for(unsigned int l_index = 0 ; l_index < l_content.size() ; ++l_index)
@@ -86,6 +87,7 @@ m_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap?_="+l_stream.str
 	  }
       }
     std::cout << l_formated_content << std::endl ;
+#endif // DISPLAY_JSON_CONTENT
 
     json_kit::json_parser l_parser;
     const json_kit::json_object & l_data = l_parser.parse(l_content);
