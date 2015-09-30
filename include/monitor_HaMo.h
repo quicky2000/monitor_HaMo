@@ -23,6 +23,8 @@
 
 namespace monitor_HaMo
 {
+  class global_station_info;
+
   class monitor_HaMo
   {
   public:
@@ -36,7 +38,7 @@ namespace monitor_HaMo
 		      const std::string & p_proxy_user,
 		      const std::string & p_proxy_password);
 
-    void get_station_data(void);
+    void get_station_data(global_station_info & p_info);
   private:
     quicky_url_reader::url_reader m_url_reader;
   };

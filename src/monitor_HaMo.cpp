@@ -16,6 +16,7 @@
 */
 #include "monitor_HaMo.h"
 #include "json_parser.h"
+#include "global_station_info.h"
 #include <iostream>
 #include <sstream>
 #include <ctime>
@@ -56,14 +57,15 @@ namespace monitor_HaMo
   }
 
   //----------------------------------------------------------------------------
-  void monitor_HaMo::get_station_data(void)
+  void monitor_HaMo::get_station_data(global_station_info & p_info)
   {
     std::string l_content;
+    p_info.clear();
 
     time_t l_time = time(nullptr);
     std::stringstream l_stream;
     l_stream << l_time;
-m_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap?_="+l_stream.str(),l_content);
+    m_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap?_="+l_stream.str(),l_content);
 
 #ifdef DISPLAY_JSON_CONTENT
     std::string l_formated_content;
@@ -96,37 +98,17 @@ m_url_reader.dump_url("https://gride.gr-tsc.com/service/homemap?_="+l_stream.str
 
     const json_kit::json_value & l_stations = l_data.get("zone").get("areas").get(0).get("stations");
     unsigned int l_station_number = l_stations.get_size();
-    uint64_t l_total_coms = 0;
-    uint64_t l_total_iroads = 0;
-    uint64_t l_total_parking = 0;
-    size_t l_max_size = 0;
-    for(unsigned int l_index = 0 ; l_index < l_station_number ; ++l_index)
-    {
-      size_t l_size = l_stations.get(l_index).get("stationName").get_size();
-      if(l_size > l_max_size) l_max_size = l_size;
-    }
     for(unsigned int l_index = 0 ; l_index < l_station_number ; ++l_index)
     {
       const json_kit::json_value & l_station = l_stations.get(l_index);
       const json_kit::json_value & l_station_json_name = l_station.get("stationName");
-      std::string l_station_name = l_station_json_name.get_string();
-      if(l_station_json_name.get_size() < l_max_size)
-      {
-        l_station_name += std::string(l_max_size - l_station_json_name.get_size(),' ');
-      }
       uint64_t l_nb_parking = l_station.get("garage").get_uint64_t();
-      l_total_parking += l_nb_parking;
-      std::cout << l_station_name << " : " << l_nb_parking << " places, " << l_station.get("ev").get_uint64_t() << " vehicules dont ";
       const json_kit::json_value & l_car_details = l_station.get("evByType");
       uint64_t l_nb_coms = l_car_details.get("1").get_uint64_t();
       uint64_t l_nb_iroads = l_car_details.get("2").get_uint64_t();
-      l_total_coms += l_nb_coms;
-      l_total_iroads += l_nb_iroads;
-      std::cout << l_nb_coms  << " Coms et " << l_nb_iroads << " Iroads" << std::endl ;
+      p_info.add_station_info(l_station_json_name.get_string(),l_station_json_name.get_size(),station_info(l_station.get("ev").get_uint64_t(),l_nb_coms,l_nb_iroads,l_nb_parking));
     }
-    std::cout << "Soit " << l_total_coms << " Coms, " << l_total_iroads << " Iroads, " << l_total_parking << " places reparties sur " << l_station_number << " stations" << std::endl;
     delete(&l_data);
-
   }
   
 }

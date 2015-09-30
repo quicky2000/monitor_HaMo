@@ -18,6 +18,7 @@
 
 #include "monitor_HaMo.h"
 #include "quicky_exception.h"
+#include "global_station_info.h"
 #include <iostream>
 #include <chrono>
 #include <ctime>
@@ -176,13 +177,16 @@ int main(int argc,char ** argv)
       std::cout << "-------------------------------------------------------------" << std::endl ;
       std::cout << "Get some data to check if we are logged" << std::endl ;
 
+      monitor_HaMo::global_station_info l_info;
       while(1)
 	{
 	  std::chrono::time_point<std::chrono::system_clock> l_time = std::chrono::system_clock::now();
 	  std::time_t l_end_time = std::chrono::system_clock::to_time_t(l_time);
 	  std::cout << "Status at " << std::ctime(&l_end_time) << std::endl ;
 
-	  l_monitor.get_station_data();
+	  l_monitor.get_station_data(l_info);
+	  std::cout << l_info << std::endl ;
+
 	  unsigned int l_delay = 60;
 #ifndef _WIN32
 	  sleep(l_delay);
