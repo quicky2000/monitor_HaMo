@@ -98,11 +98,15 @@ int main(int argc,char ** argv)
       parameter_manager::parameter_if l_verbose_content_parameter("verbose-content",true);
       l_param_manager.add(l_verbose_content_parameter);
 
+      parameter_manager::parameter_if l_refresh_delay_parameter("refresh-delay",true);
+      l_param_manager.add(l_refresh_delay_parameter);
+
       // Treating parameters
       l_param_manager.treat_parameters(argc,argv);
       std::string l_user_name = l_user_name_parameter.value_set() ? l_user_name_parameter.get_value<std::string>() : "";
       std::string l_user_password = l_user_password_parameter.value_set() ? l_user_password_parameter.get_value<std::string>() : "";
 
+      unsigned int l_delay = l_refresh_delay_parameter.value_set() ? atoi(l_refresh_delay_parameter.get_value<std::string>().c_str()) : 60;
       if("" == l_user_password)
       {
         std::string l_prompt = "enter password for " + l_user_name + "\n";
@@ -200,7 +204,6 @@ int main(int argc,char ** argv)
 	    }
 	  std::swap(l_current_info,l_past_info);
 
-	  unsigned int l_delay = 60;
 #ifndef _WIN32
 	  sleep(l_delay);
 #else
