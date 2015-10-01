@@ -75,7 +75,6 @@ void getpass2(std::string & p_passwd, const std::string & p_prompt)
 int main(int argc,char ** argv)
 {
   int l_status = 0;
-
   try
     {
       // Defining application command line parameters
@@ -178,14 +177,28 @@ int main(int argc,char ** argv)
       std::cout << "Get some data to check if we are logged" << std::endl ;
 
       monitor_HaMo::global_station_info l_info;
+      monitor_HaMo::global_station_info l_info2;
+      monitor_HaMo::global_station_info * l_current_info = &l_info;
+      monitor_HaMo::global_station_info * l_past_info = &l_info2;
       while(1)
 	{
 	  std::chrono::time_point<std::chrono::system_clock> l_time = std::chrono::system_clock::now();
 	  std::time_t l_end_time = std::chrono::system_clock::to_time_t(l_time);
-	  std::cout << "Status at " << std::ctime(&l_end_time) << std::endl ;
+	  std::string l_string_time = std::ctime(&l_end_time);
+	  l_string_time = l_string_time.substr(0,l_string_time.size() - 1);
+	  std::cout.flush();
+	  std::cout << "\r" << std::string(50,' ') << "\rCheck at " << l_string_time << "";
+	  std::cout.flush();
 
-	  l_monitor.get_station_data(l_info);
-	  std::cout << l_info << std::endl ;
+	  l_monitor.get_station_data(*l_current_info);
+	  if(*l_current_info != *l_past_info)
+	    {
+	      std::cout << std::endl << "Changements observes :" << std::endl ;
+	      l_past_info->diff_report(std::cout,*l_current_info);
+	      std::cout << "Nouveau status : " << std::endl ;
+	      std::cout << *l_current_info << std::endl << std::endl ;
+	    }
+	  std::swap(l_current_info,l_past_info);
 
 	  unsigned int l_delay = 60;
 #ifndef _WIN32

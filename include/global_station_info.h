@@ -36,7 +36,11 @@ namespace monitor_HaMo
 				 const unsigned int & p_station_name_size,
 				 const station_info & p_station_info);
     inline void clear(void);
+    inline bool operator !=(const global_station_info & p_info);
+    inline void diff_report(std::ostream & p_stream,const global_station_info & p_info);
   private:
+    inline void format_station_name(const std::string & p_name,
+				    std::string & p_formatted_name)const;
     station_info m_total_station_info;
     typedef std::map<std::string,station_info> t_stations_info;
     t_stations_info m_stations_info;
@@ -50,6 +54,12 @@ namespace monitor_HaMo
     m_total_station_info(0,0,0,0),
     m_max_name_length(0)
   {
+  }
+
+  //----------------------------------------------------------------------------
+  bool global_station_info::operator !=(const global_station_info & p_info)
+  {
+    return m_total_station_info != p_info.m_total_station_info || m_stations_info != p_info.m_stations_info;
   }
 
   //----------------------------------------------------------------------------
@@ -87,18 +97,67 @@ namespace monitor_HaMo
   }
 
   //----------------------------------------------------------------------------
+  void global_station_info::diff_report(std::ostream & p_stream,const global_station_info & p_info)
+  {
+    for(auto l_station_iter : m_stations_info)
+      {
+	t_stations_info::const_iterator l_new_iter = p_info.m_stations_info.find(l_station_iter.first);
+	if(p_info.m_stations_info.end() == l_new_iter)
+	  {
+	    std::string l_formatted_name ;
+	    format_station_name(l_station_iter.first,l_formatted_name);
+	    p_stream << "Desactivation de la station " << l_formatted_name  << " : " << l_station_iter.second << std::endl;
+	  }
+	else if(l_station_iter.second != l_new_iter->second)
+	  {
+	    std::string l_formatted_name ;
+	    format_station_name(l_station_iter.first,l_formatted_name);
+	    p_stream << l_formatted_name << " : ";
+	    l_station_iter.second.diff_report(p_stream,l_new_iter->second);
+	    p_stream << std::endl ;
+	  }
+      }
+    for(auto l_station_iter : p_info.m_stations_info)
+      {
+	t_stations_info::const_iterator l_old_iter = m_stations_info.find(l_station_iter.first);
+	if(m_stations_info.end() == l_old_iter)
+	  {
+	    std::string l_formatted_name ;
+	    p_info.format_station_name(l_station_iter.first,l_formatted_name);
+	    p_stream << "Activation de la station " << l_formatted_name  << " : " << l_station_iter.second << std::endl;
+	  }
+     }
+    if(m_total_station_info != p_info.m_total_station_info)
+      {
+	p_stream << "Soit ";
+	m_total_station_info.diff_report(p_stream,p_info.m_total_station_info);
+	p_stream << std::endl ;
+      }
+  }
+
+  //----------------------------------------------------------------------------
+  void global_station_info::format_station_name(const std::string & p_name,
+						std::string & p_formatted_name)const
+  {
+      global_station_info::t_stations_name_info::const_iterator l_name_info_iter = m_stations_name_info.find(p_name);
+      assert(m_stations_name_info.end() != l_name_info_iter);
+      assert(m_max_name_length);
+      p_formatted_name = p_name + std::string(m_max_name_length - l_name_info_iter->second,' ');
+  }
+
+  //----------------------------------------------------------------------------
   std::ostream & operator<<(std::ostream & p_stream,const global_station_info & p_info)
   {
     for(auto l_station_iter :  p_info.m_stations_info)
     {
-      global_station_info::t_stations_name_info::const_iterator l_name_info_iter = p_info.m_stations_name_info.find(l_station_iter.first);
-      assert(m_stations_name_info.end() != l_name_info_iter);
-      std::string l_station_name = l_station_iter.first + std::string(p_info.m_max_name_length - l_name_info_iter->second,' ');
-      p_stream << l_station_name << " : " << l_station_iter.second << std::endl;
+      std::string l_formatted_name;
+      p_info.format_station_name(l_station_iter.first,l_formatted_name);
+      p_stream << l_formatted_name << " : " << l_station_iter.second << std::endl;
     }
-    p_stream << "Soit " << p_info.m_total_station_info << " repartis sur " << p_info.m_stations_info.size() << " stations" << std::endl ;
+    p_stream << "Soit " << p_info.m_total_station_info << " repartis sur " << p_info.m_stations_info.size() << " stations" ;
     return p_stream;
   }
+
 }
 #endif // _GLOBAL_STATION_INFO_H_
 //EOF

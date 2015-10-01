@@ -42,6 +42,11 @@ namespace monitor_HaMo
     inline void set_nb_coms(const unsigned int & p_nb_coms);
     inline void set_nb_iroad(const unsigned int & p_nb_iroad);
     inline void set_nb_parking(const unsigned int & p_nb_parking);
+
+    inline bool operator !=(const station_info & p_info)const;
+    inline bool operator ==(const station_info & p_info)const;
+
+    inline void diff_report(std::ostream & p_stream,const station_info & p_info);
   private:
     unsigned int m_nb_car;
     unsigned int m_nb_coms;
@@ -138,6 +143,56 @@ namespace monitor_HaMo
   {
     p_stream << p_info.m_nb_parking << " places, " << p_info.m_nb_car << " vehicules dont " << p_info.m_nb_coms  << " Coms et " << p_info.m_nb_iroad << " Iroads";
     return p_stream;
+  }
+
+  //----------------------------------------------------------------------------
+  bool station_info::operator !=(const station_info & p_info)const
+  {
+    return m_nb_car != p_info.m_nb_car || m_nb_coms != p_info.m_nb_coms || m_nb_iroad != p_info.m_nb_iroad || m_nb_parking != p_info.m_nb_parking;
+  }
+
+  //----------------------------------------------------------------------------
+  bool station_info::operator ==(const station_info & p_info)const
+  {
+    return m_nb_car == p_info.m_nb_car && m_nb_coms == p_info.m_nb_coms && m_nb_iroad == p_info.m_nb_iroad && m_nb_parking == p_info.m_nb_parking;
+  }
+
+  //----------------------------------------------------------------------------
+  void station_info::diff_report(std::ostream & p_stream,const station_info & p_info)
+  {
+    bool l_first = true;
+    if(m_nb_parking != p_info.m_nb_parking)
+      {
+	p_stream << m_nb_parking << " -> " << p_info.m_nb_parking << " places";
+	l_first = false;
+      }
+    if(m_nb_car != p_info.m_nb_car)
+      {
+	if(!l_first)
+	  {
+	    p_stream << ", " ;
+	  }
+	p_stream << m_nb_car << " -> " << p_info.m_nb_car << " vehicules";
+	l_first = false;
+      }
+    if(m_nb_coms != p_info.m_nb_coms)
+      {
+	if(!l_first)
+	  {
+	    p_stream << ", " ;
+	  }
+	p_stream << m_nb_coms << " -> " << p_info.m_nb_coms << " Coms";
+	l_first = false;
+      }
+    if(m_nb_iroad != p_info.m_nb_iroad)
+      {
+	if(!l_first)
+	  {
+	    p_stream << ", " ;
+	  }
+	p_stream << m_nb_iroad << " -> " << p_info.m_nb_iroad << " Iroads";
+	l_first = false;
+      }
   }
 }
 #endif // _STATION_INFO_H_
