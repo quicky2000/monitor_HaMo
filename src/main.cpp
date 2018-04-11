@@ -19,58 +19,10 @@
 #include "monitor_HaMo.h"
 #include "quicky_exception.h"
 #include "global_station_info.h"
+#include "password_input.h"
 #include <iostream>
 #include <chrono>
 #include <ctime>
-
-#ifndef WIN32
-#include <unistd.h>     /* getlogin */
-#include <termios.h>    /* tcsetattr */
-#else
-#include <windows.h>    /* DWORD, GetUserName, SetConsoleMode */
-char *getlogin(void)
-{
-  static char user_name[MAX_PATH];
-  DWORD  length = sizeof (user_name);
-  if (GetUserName (user_name, &length))
-    return user_name;
-  return NULL;
-}
-#endif
-
-void set_stdin_echo(bool enable = true)
-{
-#ifdef WIN32
-  HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-  DWORD mode;
-  GetConsoleMode(hStdin, &mode);
-
-  if( !enable )
-    mode &= ~ENABLE_ECHO_INPUT;
-  else
-    mode |= ENABLE_ECHO_INPUT;
-
-  SetConsoleMode(hStdin, mode );
-
-#else
-  struct termios tty;
-  tcgetattr(STDIN_FILENO, &tty);
-  if( !enable )
-    tty.c_lflag &= ~ECHO;
-  else
-    tty.c_lflag |= ECHO;
-
-  (void) tcsetattr(STDIN_FILENO, TCSANOW, &tty);
-#endif
-}
-
-void getpass2(std::string & p_passwd, const std::string & p_prompt)
-{
-  std::cout << p_prompt;
-  set_stdin_echo( false);
-  std::cin >> p_passwd;
-  set_stdin_echo( true);
-}
 
 int main(int argc,char ** argv)
 {
